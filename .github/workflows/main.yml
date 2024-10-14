@@ -1,0 +1,48 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main # Dispara o workflow a cada push na branch main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build with Maven
+        run: mvn clean package -DskipTests
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }} # Busca o nome de usuário do Docker Hub nos segredos
+          password: ${{ secrets.DOCKER_PASSWORD }} # Busca a senha do Docker Hub nos segredos
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/sua-aplicacao:latest
+
+      - name: Logout of Docker Hub
+        uses: docker/logout-action@v1
+
+      - name: Deploy to Docker Swarm (Exemplo)
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST_IP }} # Substitua pelo IP ou hostname do seu servidor
+          username: ${{ secrets.HOST_USERNAME }} # Substitua pelo usuário SSH do seu servidor
+          key: ${{ secrets.HOST_SSH_KEY }} # Substitua pela sua chave SSH privada
+          script: |
+            docker service update --image ${{ secrets.DOCKER_USERNAME }}/sua-aplicacao:latest sua-aplicacao # Atualiza o serviço Docker Swarm
